@@ -19,7 +19,8 @@ let isRemoteDebugging: boolean = false;
 
 export enum RemoteDebugLanguage {
     Node,
-    Python
+    Python,
+    CSharp
 }
 
 export async function startRemoteDebug(siteClient: SiteClient, siteConfig: WebSiteManagementModels.SiteConfigResource, language: RemoteDebugLanguage): Promise<void> {
@@ -90,6 +91,9 @@ const baseConfigs: { [key in RemoteDebugLanguage]: Object } = {
     },
     [RemoteDebugLanguage.Python]: {
         type: 'python'
+    },
+    [RemoteDebugLanguage.CSharp]: {
+        type: 'dotnet'
     }
 };
 
@@ -104,8 +108,23 @@ async function getDebugConfiguration(language: RemoteDebugLanguage): Promise<vsc
     const config: vscode.DebugConfiguration = <vscode.DebugConfiguration>baseConfigs[language];
     config.name = sessionId;
     config.request = 'attach';
-    config.address = 'localhost';
-    config.port = portNumber;
+    if (language == RemoteDebugLanguage.CSharp) {
+        config.processId = "${command:pickRemoteProcess}";
+        config.pipeTransport = {
+                "pipeCwd": "${workspaceFolder}",
+                "pipeProgram": "/usr/bin/ssh",
+                "pipeArgs": [
+                    "root@localhost",
+                    "-p",
+                    portNumber
+                ]
+        };
+        config.debuggerPath = "/home/.vsdbg/vsdbg"
+    }
+    else {
+        config.address = 'localhost';
+        config.port = portNumber;
+    }
 
     // Try to map workspace folder source files to the remote instance
     if (vscode.workspace.workspaceFolders) {
